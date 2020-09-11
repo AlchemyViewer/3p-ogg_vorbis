@@ -41,38 +41,44 @@ case "$AUTOBUILD_PLATFORM" in
         function copy_result {
             # $1 is the build directory in which to find the result
             # $2 is the basename of the .lib file we expect to find there
-            cp "win32/$1/$2.lib" "$stage/lib/release/"
-            # This is odd, but empirically even VS 2017 (aka vc150) produces a
-            # vc120.pdb file into $1. Since the string "vc120" isn't obviously
-            # embedded in either the .sln file or the various .vcxproj files,
-            # we didn't dig further to try to figure out how to change it
-            # there. (If we were going to change it there, we'd want to change
-            # it to match the .lib name itself, instead of having to rename it
-            # in this copy command.)
-            cp "win32/$1/vc120.pdb" "$stage/lib/release/$2.pdb"
+            cp "$1/$2".{lib,dll,exp,pdb} "$stage/lib/$3/"
         }
 
+        if [ "$AUTOBUILD_ADDRSIZE" = 32 ]
+        then bitdir="Win32"
+        else bitdir="x64"
+        fi
+
         pushd "$OGG_SOURCE_DIR"
+            pushd "win32/VS2019"
+                build_sln "libogg.sln" "DebugDLL" "$AUTOBUILD_WIN_VSPLATFORM" "libogg"
 
-        build_sln "win32/ogg.sln" "Release|$AUTOBUILD_WIN_VSPLATFORM" "ogg_static"
+                mkdir -p "$stage/lib/debug"
+                copy_result "$bitdir/DebugDLL" libogg debug
 
-        mkdir -p "$stage/lib/release"
-        copy_result Static_Release ogg_static
+                build_sln "libogg.sln" "ReleaseDLL" "$AUTOBUILD_WIN_VSPLATFORM" "libogg"
+
+                mkdir -p "$stage/lib/release"
+                copy_result "$bitdir/ReleaseDLL" libogg release
+            popd
 
         mkdir -p "$stage/include"
         cp -a "include/ogg/" "$stage/include/"
 
         popd
         pushd "$VORBIS_SOURCE_DIR"
+            pushd "win32/VS2019"
+                build_sln "vorbis_dynamic.sln" "DebugDLL" "$AUTOBUILD_WIN_VSPLATFORM"
 
-        build_sln "win32/vorbis.sln" "Release|$AUTOBUILD_WIN_VSPLATFORM" "vorbis_static"
-        build_sln "win32/vorbis.sln" "Release|$AUTOBUILD_WIN_VSPLATFORM" "vorbisenc_static"
-        build_sln "win32/vorbis.sln" "Release|$AUTOBUILD_WIN_VSPLATFORM" "vorbisfile_static"
+                copy_result "$bitdir/DebugDLL"  libvorbis       debug
+                copy_result "$bitdir/DebugDLL"  libvorbisfile   debug
 
-        copy_result Vorbis_Static_Release     vorbis_static
-        copy_result VorbisEnc_Static_Release  vorbisenc_static
-        copy_result VorbisFile_Static_Release vorbisfile_static
-        cp -a "include/vorbis/" "$stage/include/"
+                build_sln "vorbis_dynamic.sln" "ReleaseDLL" "$AUTOBUILD_WIN_VSPLATFORM"
+
+                copy_result "$bitdir/ReleaseDLL"  libvorbis       release
+                copy_result "$bitdir/ReleaseDLL"  libvorbisfile   release
+            popd
+            cp -a "include/vorbis/" "$stage/include/"
         popd
     ;;
     darwin*)
