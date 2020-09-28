@@ -103,23 +103,127 @@ case "$AUTOBUILD_PLATFORM" in
         mv "$stage/release" "$stage/lib"
      ;;
     linux*)
+        # Linux build environment at Linden comes pre-polluted with stuff that can
+        # seriously damage 3rd-party builds.  Environmental garbage you can expect
+        # includes:
+        #
+        #    DISTCC_POTENTIAL_HOSTS     arch           root        CXXFLAGS
+        #    DISTCC_LOCATION            top            branch      CC
+        #    DISTCC_HOSTS               build_name     suffix      CXX
+        #    LSDISTCC_ARGS              repo           prefix      CFLAGS
+        #    cxx_version                AUTOBUILD      SIGN        CPPFLAGS
+        #
+        # So, clear out bits that shouldn't affect our configure-directed build
+        # but which do nonetheless.
+        #
+        # unset DISTCC_HOSTS CC CXX CFLAGS CPPFLAGS CXXFLAGS
+
+        # Default target per --address-size
+        opts="${TARGET_OPTS:--m$AUTOBUILD_ADDRSIZE}"
+
+        # Setup build flags
+        DEBUG_COMMON_FLAGS="$opts -Og -g -fPIC -DPIC -I$stage/include"
+        RELEASE_COMMON_FLAGS="$opts -O3 -g -fPIC -DPIC -fstack-protector-strong -D_FORTIFY_SOURCE=2 -I$stage/include"
+        DEBUG_CFLAGS="$DEBUG_COMMON_FLAGS "
+        RELEASE_CFLAGS="$RELEASE_COMMON_FLAGS"
+        DEBUG_CXXFLAGS="$DEBUG_COMMON_FLAGS -std=c++17"
+        RELEASE_CXXFLAGS="$RELEASE_COMMON_FLAGS -std=c++17"
+        DEBUG_CPPFLAGS="-DPIC"
+        RELEASE_CPPFLAGS="-DPIC"
+        DEBUG_LDFLAGS="-L$stage/lib/debug"
+        RELEASE_LDFLAGS="-L$stage/lib/release"
+
+        JOBS=`cat /proc/cpuinfo | grep processor | wc -l`
+
+        # Handle any deliberate platform targeting
+        if [ -z "${TARGET_CPPFLAGS:-}" ]; then
+            # Remove sysroot contamination from build environment
+            unset CPPFLAGS
+        else
+            # Incorporate special pre-processing flags
+            export CPPFLAGS="$TARGET_CPPFLAGS"
+        fi
+
+        # Fix up path for pkgconfig
+        if [ -d "$stage/packages/lib/release/pkgconfig" ]; then
+            fix_pkgconfig_prefix "$stage/packages"
+        fi
+
+        OLD_PKG_CONFIG_PATH="${PKG_CONFIG_PATH:-}"
+
         pushd "$OGG_SOURCE_DIR"
-        opts="-m$AUTOBUILD_ADDRSIZE $LL_BUILD_RELEASE"
-        CFLAGS="$opts" CXXFLAGS="$opts" ./configure --prefix="$stage"
-        make
-        make install
+            # force regenerate autoconf
+            autoreconf -fvi
+
+            # debug configure and build
+            export PKG_CONFIG_PATH="$stage/packages/lib/debug/pkgconfig:${OLD_PKG_CONFIG_PATH}"
+
+            CFLAGS="$DEBUG_CFLAGS" CXXFLAGS="$DEBUG_CXXFLAGS" ./configure --enable-static --disable-shared \
+                --prefix="\${AUTOBUILD_PACKAGES_DIR}" --includedir="\${prefix}/include" --libdir="\${prefix}/lib/debug"
+            make -j$JOBS
+            make check
+            make install DESTDIR="$stage"
+
+            # conditionally run unit tests
+            if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                make check
+            fi
+
+            make distclean
+
+            # Release configure and build
+            export PKG_CONFIG_PATH="$stage/packages/lib/release/pkgconfig:${OLD_PKG_CONFIG_PATH}"
+
+            CFLAGS="$RELEASE_CFLAGS" CXXFLAGS="$RELEASE_CXXFLAGS" ./configure --enable-static --disable-shared \
+                --prefix="\${AUTOBUILD_PACKAGES_DIR}" --includedir="\${prefix}/include" --libdir="\${prefix}/lib/release"
+            make -j$JOBS
+            make check
+            make install DESTDIR="$stage"
+
+            # conditionally run unit tests
+            if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                make check
+            fi
+
+            make distclean
         popd
         
         pushd "$VORBIS_SOURCE_DIR"
-        export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:"$stage/lib"
-        CFLAGS="$opts" CXXFLAGS="$opts" ./configure --prefix="$stage"
-        make
-        make install
+             # force regenerate autoconf
+            autoreconf -fvi
+
+            # debug configure and build
+            export PKG_CONFIG_PATH="$stage/packages/lib/debug/pkgconfig:${OLD_PKG_CONFIG_PATH}"
+
+            CFLAGS="$DEBUG_CFLAGS" CXXFLAGS="$DEBUG_CXXFLAGS" LDFLAGS="$DEBUG_LDFLAGS" \
+                ./configure --with-pic --enable-static --disable-shared \
+                --prefix="\${AUTOBUILD_PACKAGES_DIR}" --includedir="\${prefix}/include" --libdir="\${prefix}/lib/debug"
+            make -j$JOBS
+            make install DESTDIR="$stage"
+
+            # conditionally run unit tests
+            if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                make check
+            fi
+
+            make distclean
+
+            # Release configure and build
+            export PKG_CONFIG_PATH="$stage/packages/lib/release/pkgconfig:${OLD_PKG_CONFIG_PATH}"
+
+            CFLAGS="$RELEASE_CFLAGS" CXXFLAGS="$RELEASE_CXXFLAGS" LDFLAGS="$RELEASE_LDFLAGS" \
+                ./configure --with-pic --enable-static --disable-shared \
+                --prefix="\${AUTOBUILD_PACKAGES_DIR}" --includedir="\${prefix}/include" --libdir="\${prefix}/lib/release"
+            make -j$JOBS
+            make install DESTDIR="$stage"
+
+            # conditionally run unit tests
+            if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                make check
+            fi
+
+            make distclean
         popd
-        
-        mv "$stage/lib" "$stage/release"
-        mkdir -p "$stage/lib"
-        mv "$stage/release" "$stage/lib"
     ;;
 esac
 mkdir -p "$stage/LICENSES"
