@@ -33,8 +33,7 @@ source_environment_tempfile="$stage/source_environment.sh"
 "$autobuild" source_environment > "$source_environment_tempfile"
 . "$source_environment_tempfile"
 
-build=${AUTOBUILD_BUILD_ID:=0}
-echo "${OGG_VERSION}-${VORBIS_VERSION}.${build}" > "${stage}/VERSION.txt"
+echo "${OGG_VERSION}" > "${stage}/VERSION.txt"
 
 case "$AUTOBUILD_PLATFORM" in
     windows*)
