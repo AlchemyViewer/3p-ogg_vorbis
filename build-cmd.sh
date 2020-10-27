@@ -157,7 +157,7 @@ case "$AUTOBUILD_PLATFORM" in
             # debug configure and build
             export PKG_CONFIG_PATH="$stage/packages/lib/debug/pkgconfig:${OLD_PKG_CONFIG_PATH}"
 
-            CFLAGS="$DEBUG_CFLAGS" CXXFLAGS="$DEBUG_CXXFLAGS" ./configure --enable-static --disable-shared \
+            CFLAGS="$DEBUG_CFLAGS" CXXFLAGS="$DEBUG_CXXFLAGS" ./configure --enable-static \
                 --prefix="\${AUTOBUILD_PACKAGES_DIR}" --includedir="\${prefix}/include" --libdir="\${prefix}/lib/debug"
             make -j$JOBS
             make check
@@ -173,7 +173,7 @@ case "$AUTOBUILD_PLATFORM" in
             # Release configure and build
             export PKG_CONFIG_PATH="$stage/packages/lib/release/pkgconfig:${OLD_PKG_CONFIG_PATH}"
 
-            CFLAGS="$RELEASE_CFLAGS" CXXFLAGS="$RELEASE_CXXFLAGS" ./configure --enable-static --disable-shared \
+            CFLAGS="$RELEASE_CFLAGS" CXXFLAGS="$RELEASE_CXXFLAGS" ./configure --enable-static \
                 --prefix="\${AUTOBUILD_PACKAGES_DIR}" --includedir="\${prefix}/include" --libdir="\${prefix}/lib/release"
             make -j$JOBS
             make check
@@ -195,7 +195,7 @@ case "$AUTOBUILD_PLATFORM" in
             export PKG_CONFIG_PATH="$stage/packages/lib/debug/pkgconfig:${OLD_PKG_CONFIG_PATH}"
 
             CFLAGS="$DEBUG_CFLAGS" CXXFLAGS="$DEBUG_CXXFLAGS" LDFLAGS="$DEBUG_LDFLAGS" \
-                ./configure --with-pic --enable-static --disable-shared \
+                ./configure --with-pic --enable-static \
                 --prefix="\${AUTOBUILD_PACKAGES_DIR}" --includedir="\${prefix}/include" --libdir="\${prefix}/lib/debug"
             make -j$JOBS
             make install DESTDIR="$stage"
@@ -211,7 +211,7 @@ case "$AUTOBUILD_PLATFORM" in
             export PKG_CONFIG_PATH="$stage/packages/lib/release/pkgconfig:${OLD_PKG_CONFIG_PATH}"
 
             CFLAGS="$RELEASE_CFLAGS" CXXFLAGS="$RELEASE_CXXFLAGS" LDFLAGS="$RELEASE_LDFLAGS" \
-                ./configure --with-pic --enable-static --disable-shared \
+                ./configure --with-pic --enable-static \
                 --prefix="\${AUTOBUILD_PACKAGES_DIR}" --includedir="\${prefix}/include" --libdir="\${prefix}/lib/release"
             make -j$JOBS
             make install DESTDIR="$stage"
