@@ -81,42 +81,158 @@ case "$AUTOBUILD_PLATFORM" in
         popd
     ;;
     darwin*)
+        # Setup osx sdk platform
+        SDKNAME="macosx10.15"
+        export SDKROOT=$(xcodebuild -version -sdk ${SDKNAME} Path)
+        export MACOSX_DEPLOYMENT_TARGET=10.13
+
+        # Setup build flags
+        ARCH_FLAGS="-arch x86_64"
+        SDK_FLAGS="-mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET} -isysroot ${SDKROOT}"
+        DEBUG_COMMON_FLAGS="$ARCH_FLAGS $SDK_FLAGS -Og -g -msse4.2 -fPIC -DPIC"
+        RELEASE_COMMON_FLAGS="$ARCH_FLAGS $SDK_FLAGS -Ofast -ffast-math -g -msse4.2 -fPIC -DPIC -fstack-protector-strong"
+        DEBUG_CFLAGS="$DEBUG_COMMON_FLAGS"
+        RELEASE_CFLAGS="$RELEASE_COMMON_FLAGS"
+        DEBUG_CXXFLAGS="$DEBUG_COMMON_FLAGS -std=c++17"
+        RELEASE_CXXFLAGS="$RELEASE_COMMON_FLAGS -std=c++17"
+        DEBUG_CPPFLAGS="-DPIC"
+        RELEASE_CPPFLAGS="-DPIC"
+        DEBUG_LDFLAGS="$ARCH_FLAGS $SDK_FLAGS -Wl,-headerpad_max_install_names -Wl,-macos_version_min,$MACOSX_DEPLOYMENT_TARGET"
+        RELEASE_LDFLAGS="$ARCH_FLAGS $SDK_FLAGS -Wl,-headerpad_max_install_names -Wl,-macos_version_min,$MACOSX_DEPLOYMENT_TARGET"
+
+        JOBS=`sysctl -n hw.ncpu`
+
         pushd "$OGG_SOURCE_DIR"
-        opts="-arch $AUTOBUILD_CONFIGURE_ARCH $LL_BUILD_RELEASE"
-        export CFLAGS="$opts" 
-        export CPPFLAGS="$opts" 
-        export LDFLAGS="$opts"
-        ./configure --prefix="$stage"
-        make
-        make install
+            # force regenerate autoconf
+            autoreconf -fvi
+
+            # debug configure and build
+            mkdir -p "build_release"
+            pushd "build_release"
+                CFLAGS="$DEBUG_CFLAGS" CXXFLAGS="$DEBUG_CXXFLAGS" \
+                CPPFLAGS="$DEBUG_CPPFLAGS" LDFLAGS="$DEBUG_LDFLAGS" \
+                ../configure --prefix="\${AUTOBUILD_PACKAGES_DIR}" \
+                    --includedir="\${prefix}/include" --libdir="\${prefix}/lib/debug"
+                make -j$JOBS
+                make install DESTDIR="$stage"
+
+                # conditionally run unit tests
+                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                    make check
+                fi
+            popd
+
+            # Release configure and build
+            mkdir -p "build_release"
+            pushd "build_release"
+                CFLAGS="$RELEASE_CFLAGS" CXXFLAGS="$RELEASE_CXXFLAGS" \
+                CPPFLAGS="$RELEASE_CPPFLAGS" LDFLAGS="$RELEASE_LDFLAGS" \
+                ../configure --prefix="\${AUTOBUILD_PACKAGES_DIR}" \
+                    --includedir="\${prefix}/include" --libdir="\${prefix}/lib/release"
+                make -j$JOBS
+                make install DESTDIR="$stage"
+
+                # conditionally run unit tests
+                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                    make check
+                fi
+            popd
         popd
         
+        pushd "${stage}/lib/debug"
+            install_name_tool -id "$stage/lib/debug/libogg.0.dylib" libogg.0.dylib
+        popd
+
+        pushd "${stage}/lib/release"
+            install_name_tool -id "$stage/lib/release/libogg.0.dylib" libogg.0.dylib
+        popd
+
         pushd "$VORBIS_SOURCE_DIR"
-        ./configure --prefix="$stage"
-        make
-        make install
+             # force regenerate autoconf
+            autoreconf -fvi
+
+            # debug configure and build
+            mkdir -p "build_debug"
+            pushd "build_debug"
+                CFLAGS="$DEBUG_CFLAGS" CXXFLAGS="$DEBUG_CXXFLAGS" \
+                CPPFLAGS="$DEBUG_CPPFLAGS" LDFLAGS="$DEBUG_LDFLAGS" \
+                    ../configure --with-pic --with-ogg-includes="$stage/include/" --with-ogg-libraries="$stage/lib/debug" \
+                    --prefix="\${AUTOBUILD_PACKAGES_DIR}" --includedir="\${prefix}/include" --libdir="\${prefix}/lib/debug"
+                make -j$JOBS
+                make install DESTDIR="$stage"
+
+                # conditionally run unit tests
+                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                    make check
+                fi
+            popd
+
+            # Release configure and build
+            mkdir -p "build_release"
+            pushd "build_release"
+                CFLAGS="$RELEASE_CFLAGS" CXXFLAGS="$RELEASE_CXXFLAGS" \
+                CPPFLAGS="$RELEASE_CPPFLAGS" LDFLAGS="$RELEASE_LDFLAGS" \
+                ../configure --with-pic --with-ogg-includes="$stage/include/" --with-ogg-libraries="$stage/lib/release" \
+                    --prefix="\${AUTOBUILD_PACKAGES_DIR}" --includedir="\${prefix}/include" --libdir="\${prefix}/lib/release"
+                make -j$JOBS
+                make install DESTDIR="$stage"
+
+                # conditionally run unit tests
+                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                    make check
+                fi
+            popd
         popd
-        
-        mv "$stage/lib" "$stage/release"
-        mkdir -p "$stage/lib"
-        mv "$stage/release" "$stage/lib"
+
+        pushd "${stage}/lib/debug"
+            install_name_tool -change "$stage/lib/debug/libogg.0.dylib" "@rpath/libogg.0.dylib" libvorbis.dylib
+            install_name_tool -change "$stage/lib/debug/libogg.0.dylib" "@rpath/libogg.0.dylib" libvorbisenc.dylib
+            install_name_tool -change "$stage/lib/debug/libogg.0.dylib" "@rpath/libogg.0.dylib" libvorbisfile.dylib
+            install_name_tool -change "/lib/debug/libvorbis.0.dylib" "@rpath/libvorbis.0.dylib" libvorbisenc.dylib
+            install_name_tool -change "/lib/debug/libvorbis.0.dylib" "@rpath/libvorbis.0.dylib" libvorbisfile.dylib
+
+            fix_dylib_id libogg.dylib
+            dsymutil libogg.dylib
+            strip -x -S libogg.dylib
+
+            fix_dylib_id libvorbis.dylib
+            dsymutil libvorbis.dylib
+            strip -x -S libvorbis.dylib
+
+            fix_dylib_id libvorbisenc.dylib
+            dsymutil libvorbisenc.dylib
+            strip -x -S libvorbisenc.dylib
+
+            fix_dylib_id libvorbisfile.dylib
+            dsymutil libvorbisfile.dylib
+            strip -x -S libvorbisfile.dylib
+        popd
+
+        pushd "${stage}/lib/release"
+            install_name_tool -change "$stage/lib/release/libogg.0.dylib" "@rpath/libogg.0.dylib" libvorbis.dylib
+            install_name_tool -change "$stage/lib/release/libogg.0.dylib" "@rpath/libogg.0.dylib" libvorbisenc.dylib
+            install_name_tool -change "$stage/lib/release/libogg.0.dylib" "@rpath/libogg.0.dylib" libvorbisfile.dylib
+            install_name_tool -change "/lib/release/libvorbis.0.dylib" "@rpath/libvorbis.0.dylib" libvorbisenc.dylib
+            install_name_tool -change "/lib/release/libvorbis.0.dylib" "@rpath/libvorbis.0.dylib" libvorbisfile.dylib
+
+            fix_dylib_id libogg.dylib
+            dsymutil libogg.dylib
+            strip -x -S libogg.dylib
+
+            fix_dylib_id libvorbis.dylib
+            dsymutil libvorbis.dylib
+            strip -x -S libvorbis.dylib
+
+            fix_dylib_id libvorbisenc.dylib
+            dsymutil libvorbisenc.dylib
+            strip -x -S libvorbisenc.dylib
+
+            fix_dylib_id libvorbisfile.dylib
+            dsymutil libvorbisfile.dylib
+            strip -x -S libvorbisfile.dylib
+        popd
      ;;
     linux*)
-        # Linux build environment at Linden comes pre-polluted with stuff that can
-        # seriously damage 3rd-party builds.  Environmental garbage you can expect
-        # includes:
-        #
-        #    DISTCC_POTENTIAL_HOSTS     arch           root        CXXFLAGS
-        #    DISTCC_LOCATION            top            branch      CC
-        #    DISTCC_HOSTS               build_name     suffix      CXX
-        #    LSDISTCC_ARGS              repo           prefix      CFLAGS
-        #    cxx_version                AUTOBUILD      SIGN        CPPFLAGS
-        #
-        # So, clear out bits that shouldn't affect our configure-directed build
-        # but which do nonetheless.
-        #
-        # unset DISTCC_HOSTS CC CXX CFLAGS CPPFLAGS CXXFLAGS
-
         # Default target per --address-size
         opts="${TARGET_OPTS:--m$AUTOBUILD_ADDRSIZE}"
 
