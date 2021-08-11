@@ -89,18 +89,16 @@ case "$AUTOBUILD_PLATFORM" in
         # Setup build flags
         ARCH_FLAGS="-arch x86_64"
         SDK_FLAGS="-mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET} -isysroot ${SDKROOT}"
-        DEBUG_COMMON_FLAGS="$ARCH_FLAGS $SDK_FLAGS -Og -g -msse4.2 -fPIC -DPIC"
-        RELEASE_COMMON_FLAGS="$ARCH_FLAGS $SDK_FLAGS -Ofast -ffast-math -g -msse4.2 -fPIC -DPIC -fstack-protector-strong"
+        DEBUG_COMMON_FLAGS="$ARCH_FLAGS $SDK_FLAGS -O0 -g -msse4.2 -fPIC -DPIC"
+        RELEASE_COMMON_FLAGS="$ARCH_FLAGS $SDK_FLAGS -O3 -ffast-math -g -msse4.2 -fPIC -DPIC -fstack-protector-strong"
         DEBUG_CFLAGS="$DEBUG_COMMON_FLAGS"
         RELEASE_CFLAGS="$RELEASE_COMMON_FLAGS"
         DEBUG_CXXFLAGS="$DEBUG_COMMON_FLAGS -std=c++17"
         RELEASE_CXXFLAGS="$RELEASE_COMMON_FLAGS -std=c++17"
         DEBUG_CPPFLAGS="-DPIC"
         RELEASE_CPPFLAGS="-DPIC"
-        DEBUG_LDFLAGS="$ARCH_FLAGS $SDK_FLAGS -Wl,-headerpad_max_install_names -Wl,-macos_version_min,$MACOSX_DEPLOYMENT_TARGET"
-        RELEASE_LDFLAGS="$ARCH_FLAGS $SDK_FLAGS -Wl,-headerpad_max_install_names -Wl,-macos_version_min,$MACOSX_DEPLOYMENT_TARGET"
-
-        JOBS=`sysctl -n hw.ncpu`
+        DEBUG_LDFLAGS="$ARCH_FLAGS $SDK_FLAGS -Wl,-headerpad_max_install_names"
+        RELEASE_LDFLAGS="$ARCH_FLAGS $SDK_FLAGS -Wl,-headerpad_max_install_names"
 
         pushd "$OGG_SOURCE_DIR"
             # force regenerate autoconf
@@ -111,9 +109,9 @@ case "$AUTOBUILD_PLATFORM" in
             pushd "build_release"
                 CFLAGS="$DEBUG_CFLAGS" CXXFLAGS="$DEBUG_CXXFLAGS" \
                 CPPFLAGS="$DEBUG_CPPFLAGS" LDFLAGS="$DEBUG_LDFLAGS" \
-                ../configure --prefix="\${AUTOBUILD_PACKAGES_DIR}" \
+                ../configure --with-pic --enable-shared=no --prefix="\${AUTOBUILD_PACKAGES_DIR}" \
                     --includedir="\${prefix}/include" --libdir="\${prefix}/lib/debug"
-                make -j$JOBS
+                make -j$AUTOBUILD_CPU_COUNT
                 make install DESTDIR="$stage"
 
                 # conditionally run unit tests
@@ -127,9 +125,9 @@ case "$AUTOBUILD_PLATFORM" in
             pushd "build_release"
                 CFLAGS="$RELEASE_CFLAGS" CXXFLAGS="$RELEASE_CXXFLAGS" \
                 CPPFLAGS="$RELEASE_CPPFLAGS" LDFLAGS="$RELEASE_LDFLAGS" \
-                ../configure --prefix="\${AUTOBUILD_PACKAGES_DIR}" \
+                ../configure --with-pic --enable-shared=no --prefix="\${AUTOBUILD_PACKAGES_DIR}" \
                     --includedir="\${prefix}/include" --libdir="\${prefix}/lib/release"
-                make -j$JOBS
+                make -j$AUTOBUILD_CPU_COUNT
                 make install DESTDIR="$stage"
 
                 # conditionally run unit tests
@@ -137,14 +135,6 @@ case "$AUTOBUILD_PLATFORM" in
                     make check
                 fi
             popd
-        popd
-        
-        pushd "${stage}/lib/debug"
-            install_name_tool -id "$stage/lib/debug/libogg.0.dylib" libogg.0.dylib
-        popd
-
-        pushd "${stage}/lib/release"
-            install_name_tool -id "$stage/lib/release/libogg.0.dylib" libogg.0.dylib
         popd
 
         pushd "$VORBIS_SOURCE_DIR"
@@ -156,9 +146,9 @@ case "$AUTOBUILD_PLATFORM" in
             pushd "build_debug"
                 CFLAGS="$DEBUG_CFLAGS" CXXFLAGS="$DEBUG_CXXFLAGS" \
                 CPPFLAGS="$DEBUG_CPPFLAGS" LDFLAGS="$DEBUG_LDFLAGS" \
-                    ../configure --with-pic --with-ogg-includes="$stage/include/" --with-ogg-libraries="$stage/lib/debug" \
+                    ../configure --with-pic  --enable-shared=no --with-ogg-includes="$stage/include/" --with-ogg-libraries="$stage/lib/debug" \
                     --prefix="\${AUTOBUILD_PACKAGES_DIR}" --includedir="\${prefix}/include" --libdir="\${prefix}/lib/debug"
-                make -j$JOBS
+                make -j$AUTOBUILD_CPU_COUNT
                 make install DESTDIR="$stage"
 
                 # conditionally run unit tests
@@ -172,9 +162,9 @@ case "$AUTOBUILD_PLATFORM" in
             pushd "build_release"
                 CFLAGS="$RELEASE_CFLAGS" CXXFLAGS="$RELEASE_CXXFLAGS" \
                 CPPFLAGS="$RELEASE_CPPFLAGS" LDFLAGS="$RELEASE_LDFLAGS" \
-                ../configure --with-pic --with-ogg-includes="$stage/include/" --with-ogg-libraries="$stage/lib/release" \
+                ../configure --with-pic  --enable-shared=no --with-ogg-includes="$stage/include/" --with-ogg-libraries="$stage/lib/release" \
                     --prefix="\${AUTOBUILD_PACKAGES_DIR}" --includedir="\${prefix}/include" --libdir="\${prefix}/lib/release"
-                make -j$JOBS
+                make -j$AUTOBUILD_CPU_COUNT
                 make install DESTDIR="$stage"
 
                 # conditionally run unit tests
@@ -182,54 +172,6 @@ case "$AUTOBUILD_PLATFORM" in
                     make check
                 fi
             popd
-        popd
-
-        pushd "${stage}/lib/debug"
-            install_name_tool -change "$stage/lib/debug/libogg.0.dylib" "@rpath/libogg.0.dylib" libvorbis.dylib
-            install_name_tool -change "$stage/lib/debug/libogg.0.dylib" "@rpath/libogg.0.dylib" libvorbisenc.dylib
-            install_name_tool -change "$stage/lib/debug/libogg.0.dylib" "@rpath/libogg.0.dylib" libvorbisfile.dylib
-            install_name_tool -change "/lib/debug/libvorbis.0.dylib" "@rpath/libvorbis.0.dylib" libvorbisenc.dylib
-            install_name_tool -change "/lib/debug/libvorbis.0.dylib" "@rpath/libvorbis.0.dylib" libvorbisfile.dylib
-
-            fix_dylib_id libogg.dylib
-            dsymutil libogg.dylib
-            strip -x -S libogg.dylib
-
-            fix_dylib_id libvorbis.dylib
-            dsymutil libvorbis.dylib
-            strip -x -S libvorbis.dylib
-
-            fix_dylib_id libvorbisenc.dylib
-            dsymutil libvorbisenc.dylib
-            strip -x -S libvorbisenc.dylib
-
-            fix_dylib_id libvorbisfile.dylib
-            dsymutil libvorbisfile.dylib
-            strip -x -S libvorbisfile.dylib
-        popd
-
-        pushd "${stage}/lib/release"
-            install_name_tool -change "$stage/lib/release/libogg.0.dylib" "@rpath/libogg.0.dylib" libvorbis.dylib
-            install_name_tool -change "$stage/lib/release/libogg.0.dylib" "@rpath/libogg.0.dylib" libvorbisenc.dylib
-            install_name_tool -change "$stage/lib/release/libogg.0.dylib" "@rpath/libogg.0.dylib" libvorbisfile.dylib
-            install_name_tool -change "/lib/release/libvorbis.0.dylib" "@rpath/libvorbis.0.dylib" libvorbisenc.dylib
-            install_name_tool -change "/lib/release/libvorbis.0.dylib" "@rpath/libvorbis.0.dylib" libvorbisfile.dylib
-
-            fix_dylib_id libogg.dylib
-            dsymutil libogg.dylib
-            strip -x -S libogg.dylib
-
-            fix_dylib_id libvorbis.dylib
-            dsymutil libvorbis.dylib
-            strip -x -S libvorbis.dylib
-
-            fix_dylib_id libvorbisenc.dylib
-            dsymutil libvorbisenc.dylib
-            strip -x -S libvorbisenc.dylib
-
-            fix_dylib_id libvorbisfile.dylib
-            dsymutil libvorbisfile.dylib
-            strip -x -S libvorbisfile.dylib
         popd
      ;;
     linux*)
