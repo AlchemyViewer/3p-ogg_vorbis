@@ -82,7 +82,7 @@ case "$AUTOBUILD_PLATFORM" in
     ;;
     darwin*)
         # Setup osx sdk platform
-        SDKNAME="macosx10.15"
+        SDKNAME="macosx"
         export SDKROOT=$(xcodebuild -version -sdk ${SDKNAME} Path)
         export MACOSX_DEPLOYMENT_TARGET=10.13
 
