@@ -190,8 +190,6 @@ case "$AUTOBUILD_PLATFORM" in
         DEBUG_LDFLAGS="-L$stage/lib/debug"
         RELEASE_LDFLAGS="-L$stage/lib/release"
 
-        JOBS=`cat /proc/cpuinfo | grep processor | wc -l`
-
         # Handle any deliberate platform targeting
         if [ -z "${TARGET_CPPFLAGS:-}" ]; then
             # Remove sysroot contamination from build environment
@@ -217,7 +215,7 @@ case "$AUTOBUILD_PLATFORM" in
 
             CFLAGS="$DEBUG_CFLAGS" CXXFLAGS="$DEBUG_CXXFLAGS" ./configure --enable-static \
                 --prefix="\${AUTOBUILD_PACKAGES_DIR}" --includedir="\${prefix}/include" --libdir="\${prefix}/lib/debug"
-            make -j$JOBS
+            make -j$AUTOBUILD_CPU_COUNT
             make check
             make install DESTDIR="$stage"
 
@@ -233,7 +231,7 @@ case "$AUTOBUILD_PLATFORM" in
 
             CFLAGS="$RELEASE_CFLAGS" CXXFLAGS="$RELEASE_CXXFLAGS" ./configure --enable-static \
                 --prefix="\${AUTOBUILD_PACKAGES_DIR}" --includedir="\${prefix}/include" --libdir="\${prefix}/lib/release"
-            make -j$JOBS
+            make -j$AUTOBUILD_CPU_COUNT
             make check
             make install DESTDIR="$stage"
 
@@ -255,7 +253,7 @@ case "$AUTOBUILD_PLATFORM" in
             CFLAGS="$DEBUG_CFLAGS" CXXFLAGS="$DEBUG_CXXFLAGS" LDFLAGS="$DEBUG_LDFLAGS" \
                 ./configure --with-pic --enable-static \
                 --prefix="\${AUTOBUILD_PACKAGES_DIR}" --includedir="\${prefix}/include" --libdir="\${prefix}/lib/debug"
-            make -j$JOBS
+            make -j$AUTOBUILD_CPU_COUNT
             make install DESTDIR="$stage"
 
             # conditionally run unit tests
@@ -271,7 +269,7 @@ case "$AUTOBUILD_PLATFORM" in
             CFLAGS="$RELEASE_CFLAGS" CXXFLAGS="$RELEASE_CXXFLAGS" LDFLAGS="$RELEASE_LDFLAGS" \
                 ./configure --with-pic --enable-static \
                 --prefix="\${AUTOBUILD_PACKAGES_DIR}" --includedir="\${prefix}/include" --libdir="\${prefix}/lib/release"
-            make -j$JOBS
+            make -j$AUTOBUILD_CPU_COUNT
             make install DESTDIR="$stage"
 
             # conditionally run unit tests
