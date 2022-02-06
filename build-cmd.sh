@@ -84,94 +84,335 @@ case "$AUTOBUILD_PLATFORM" in
         # Setup osx sdk platform
         SDKNAME="macosx"
         export SDKROOT=$(xcodebuild -version -sdk ${SDKNAME} Path)
-        export MACOSX_DEPLOYMENT_TARGET=10.15
+
+        # Deploy Targets
+        X86_DEPLOY=10.15
+        ARM64_DEPLOY=11.0
 
         # Setup build flags
-        ARCH_FLAGS="-arch x86_64"
-        SDK_FLAGS="-mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET} -isysroot ${SDKROOT}"
-        DEBUG_COMMON_FLAGS="$ARCH_FLAGS $SDK_FLAGS -O0 -g -msse4.2 -fPIC -DPIC"
-        RELEASE_COMMON_FLAGS="$ARCH_FLAGS $SDK_FLAGS -O3 -ffast-math -g -msse4.2 -fPIC -DPIC -fstack-protector-strong"
+        ARCH_FLAGS_X86="-arch x86_64 -mmacosx-version-min=${X86_DEPLOY} -isysroot ${SDKROOT} -msse4.2"
+        ARCH_FLAGS_ARM64="-arch arm64 -mmacosx-version-min=${ARM64_DEPLOY} -isysroot ${SDKROOT}"
+        DEBUG_COMMON_FLAGS="-O0 -g -fPIC -DPIC"
+        RELEASE_COMMON_FLAGS="-O3 -g -fPIC -DPIC -fstack-protector-strong"
         DEBUG_CFLAGS="$DEBUG_COMMON_FLAGS"
         RELEASE_CFLAGS="$RELEASE_COMMON_FLAGS"
         DEBUG_CXXFLAGS="$DEBUG_COMMON_FLAGS -std=c++17"
         RELEASE_CXXFLAGS="$RELEASE_COMMON_FLAGS -std=c++17"
         DEBUG_CPPFLAGS="-DPIC"
         RELEASE_CPPFLAGS="-DPIC"
-        DEBUG_LDFLAGS="$ARCH_FLAGS $SDK_FLAGS -Wl,-headerpad_max_install_names"
-        RELEASE_LDFLAGS="$ARCH_FLAGS $SDK_FLAGS -Wl,-headerpad_max_install_names"
+        DEBUG_LDFLAGS="-Wl,-headerpad_max_install_names"
+        RELEASE_LDFLAGS="-Wl,-headerpad_max_install_names"
 
         pushd "$OGG_SOURCE_DIR"
-            # force regenerate autoconf
-            autoreconf -fvi
+            # x86 Deploy Target
+            export MACOSX_DEPLOYMENT_TARGET=${X86_DEPLOY}
 
-            # debug configure and build
-            mkdir -p "build_release"
-            pushd "build_release"
-                CFLAGS="$DEBUG_CFLAGS" CXXFLAGS="$DEBUG_CXXFLAGS" \
-                CPPFLAGS="$DEBUG_CPPFLAGS" LDFLAGS="$DEBUG_LDFLAGS" \
-                ../configure --with-pic --enable-shared=no --prefix="\${AUTOBUILD_PACKAGES_DIR}" \
-                    --includedir="\${prefix}/include" --libdir="\${prefix}/lib/debug"
-                make -j$AUTOBUILD_CPU_COUNT
-                make install DESTDIR="$stage"
+            mkdir -p "build_debug_x86"
+            pushd "build_debug_x86"
+                CFLAGS="$ARCH_FLAGS_X86 $DEBUG_CFLAGS" \
+                CXXFLAGS="$ARCH_FLAGS_X86 $DEBUG_CXXFLAGS" \
+                CPPFLAGS="$ARCH_FLAGS_X86 $DEBUG_CPPFLAGS" \
+                LDFLAGS="$ARCH_FLAGS_X86 $DEBUG_LDFLAGS" \
+                cmake .. -GXcode -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=ON \
+                    -DCMAKE_C_FLAGS="$ARCH_FLAGS_X86 $DEBUG_CFLAGS" \
+                    -DCMAKE_CXX_FLAGS="$ARCH_FLAGS_X86 $DEBUG_CXXFLAGS" \
+                    -DCMAKE_XCODE_ATTRIBUTE_GCC_OPTIMIZATION_LEVEL="0" \
+                    -DCMAKE_XCODE_ATTRIBUTE_GCC_FAST_MATH=OFF \
+                    -DCMAKE_XCODE_ATTRIBUTE_GCC_GENERATE_DEBUGGING_SYMBOLS=YES \
+                    -DCMAKE_XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT=dwarf \
+                    -DCMAKE_XCODE_ATTRIBUTE_LLVM_LTO=OFF \
+                    -DCMAKE_XCODE_ATTRIBUTE_DEAD_CODE_STRIPPING=YES \
+                    -DCMAKE_XCODE_ATTRIBUTE_CLANG_X86_VECTOR_INSTRUCTIONS=sse4.2 \
+                    -DCMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LANGUAGE_STANDARD="c++17" \
+                    -DCMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY="libc++" \
+                    -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY="" \
+                    -DCMAKE_OSX_ARCHITECTURES:STRING=x86_64 \
+                    -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
+                    -DCMAKE_OSX_SYSROOT=${SDKROOT} \
+                    -DCMAKE_MACOSX_RPATH=YES \
+                    -DCMAKE_INSTALL_PREFIX="$stage/ogg_debug_x86"
+
+                cmake --build . --config Debug
+                cmake --install . --config Debug
 
                 # conditionally run unit tests
                 if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
-                    make check
+                    ctest -C Debug
                 fi
             popd
 
-            # Release configure and build
-            mkdir -p "build_release"
-            pushd "build_release"
-                CFLAGS="$RELEASE_CFLAGS" CXXFLAGS="$RELEASE_CXXFLAGS" \
-                CPPFLAGS="$RELEASE_CPPFLAGS" LDFLAGS="$RELEASE_LDFLAGS" \
-                ../configure --with-pic --enable-shared=no --prefix="\${AUTOBUILD_PACKAGES_DIR}" \
-                    --includedir="\${prefix}/include" --libdir="\${prefix}/lib/release"
-                make -j$AUTOBUILD_CPU_COUNT
-                make install DESTDIR="$stage"
+            mkdir -p "build_release_x86"
+            pushd "build_release_x86"
+                CFLAGS="$ARCH_FLAGS_X86 $RELEASE_CFLAGS" \
+                CXXFLAGS="$ARCH_FLAGS_X86 $RELEASE_CXXFLAGS" \
+                CPPFLAGS="$ARCH_FLAGS_X86 $RELEASE_CPPFLAGS" \
+                LDFLAGS="$ARCH_FLAGS_X86 $RELEASE_LDFLAGS" \
+                cmake .. -GXcode -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=ON \
+                    -DCMAKE_C_FLAGS="$ARCH_FLAGS_X86 $RELEASE_CFLAGS" \
+                    -DCMAKE_CXX_FLAGS="$ARCH_FLAGS_X86 $RELEASE_CXXFLAGS" \
+                    -DCMAKE_XCODE_ATTRIBUTE_GCC_OPTIMIZATION_LEVEL="3" \
+                    -DCMAKE_XCODE_ATTRIBUTE_GCC_FAST_MATH=NO \
+                    -DCMAKE_XCODE_ATTRIBUTE_GCC_GENERATE_DEBUGGING_SYMBOLS=YES \
+                    -DCMAKE_XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT=dwarf \
+                    -DCMAKE_XCODE_ATTRIBUTE_LLVM_LTO=NO \
+                    -DCMAKE_XCODE_ATTRIBUTE_DEAD_CODE_STRIPPING=YES \
+                    -DCMAKE_XCODE_ATTRIBUTE_CLANG_X86_VECTOR_INSTRUCTIONS=sse4.2 \
+                    -DCMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LANGUAGE_STANDARD="c++17" \
+                    -DCMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY="libc++" \
+                    -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY="" \
+                    -DCMAKE_OSX_ARCHITECTURES:STRING=x86_64 \
+                    -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
+                    -DCMAKE_OSX_SYSROOT=${SDKROOT} \
+                    -DCMAKE_MACOSX_RPATH=YES \
+                    -DCMAKE_INSTALL_PREFIX="$stage/ogg_release_x86"
+
+                cmake --build . --config Release
+                cmake --install . --config Release
 
                 # conditionally run unit tests
                 if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
-                    make check
+                    ctest -C Release
                 fi
             popd
+
+            # ARM64 Deploy Target
+            export MACOSX_DEPLOYMENT_TARGET=${ARM64_DEPLOY}
+
+            mkdir -p "build_debug_arm64"
+            pushd "build_debug_arm64"
+                CFLAGS="$ARCH_FLAGS_ARM64 $DEBUG_CFLAGS" \
+                CXXFLAGS="$ARCH_FLAGS_ARM64 $DEBUG_CXXFLAGS" \
+                CPPFLAGS="$ARCH_FLAGS_ARM64 $DEBUG_CPPFLAGS" \
+                LDFLAGS="$ARCH_FLAGS_ARM64 $DEBUG_LDFLAGS" \
+                cmake .. -GXcode -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=ON \
+                    -DCMAKE_C_FLAGS="$ARCH_FLAGS_ARM64 $DEBUG_CFLAGS" \
+                    -DCMAKE_CXX_FLAGS="$ARCH_FLAGS_ARM64 $DEBUG_CXXFLAGS" \
+                    -DCMAKE_XCODE_ATTRIBUTE_GCC_OPTIMIZATION_LEVEL="0" \
+                    -DCMAKE_XCODE_ATTRIBUTE_GCC_FAST_MATH=OFF \
+                    -DCMAKE_XCODE_ATTRIBUTE_GCC_GENERATE_DEBUGGING_SYMBOLS=YES \
+                    -DCMAKE_XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT=dwarf \
+                    -DCMAKE_XCODE_ATTRIBUTE_LLVM_LTO=OFF \
+                    -DCMAKE_XCODE_ATTRIBUTE_DEAD_CODE_STRIPPING=YES \
+                    -DCMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LANGUAGE_STANDARD="c++17" \
+                    -DCMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY="libc++" \
+                    -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY="" \
+                    -DCMAKE_OSX_ARCHITECTURES:STRING=arm64 \
+                    -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
+                    -DCMAKE_OSX_SYSROOT=${SDKROOT} \
+                    -DCMAKE_MACOSX_RPATH=YES \
+                    -DCMAKE_INSTALL_PREFIX="$stage/ogg_debug_arm64"
+
+                cmake --build . --config Debug
+                cmake --install . --config Debug
+
+                # conditionally run unit tests
+                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                    ctest -C Debug
+                fi
+            popd
+
+            mkdir -p "build_release_arm64"
+            pushd "build_release_arm64"
+                CFLAGS="$ARCH_FLAGS_ARM64 $RELEASE_CFLAGS" \
+                CXXFLAGS="$ARCH_FLAGS_ARM64 $RELEASE_CXXFLAGS" \
+                CPPFLAGS="$ARCH_FLAGS_ARM64 $RELEASE_CPPFLAGS" \
+                LDFLAGS="$ARCH_FLAGS_ARM64 $RELEASE_LDFLAGS" \
+                cmake .. -GXcode -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=ON \
+                    -DCMAKE_C_FLAGS="$ARCH_FLAGS_ARM64 $RELEASE_CFLAGS" \
+                    -DCMAKE_CXX_FLAGS="$ARCH_FLAGS_ARM64 $RELEASE_CXXFLAGS" \
+                    -DCMAKE_XCODE_ATTRIBUTE_GCC_OPTIMIZATION_LEVEL="3" \
+                    -DCMAKE_XCODE_ATTRIBUTE_GCC_FAST_MATH=NO \
+                    -DCMAKE_XCODE_ATTRIBUTE_GCC_GENERATE_DEBUGGING_SYMBOLS=YES \
+                    -DCMAKE_XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT=dwarf \
+                    -DCMAKE_XCODE_ATTRIBUTE_LLVM_LTO=NO \
+                    -DCMAKE_XCODE_ATTRIBUTE_DEAD_CODE_STRIPPING=YES \
+                    -DCMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LANGUAGE_STANDARD="c++17" \
+                    -DCMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY="libc++" \
+                    -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY="" \
+                    -DCMAKE_OSX_ARCHITECTURES:STRING=arm64 \
+                    -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
+                    -DCMAKE_OSX_SYSROOT=${SDKROOT} \
+                    -DCMAKE_MACOSX_RPATH=YES \
+                    -DCMAKE_INSTALL_PREFIX="$stage/ogg_release_arm64"
+
+                cmake --build . --config Release
+                cmake --install . --config Release
+
+                # conditionally run unit tests
+                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                    ctest -C Release
+                fi
+            popd
+
+            # setup staging dirs
+            mkdir -p "$stage/include/"
+            mkdir -p "$stage/lib/debug"
+            mkdir -p "$stage/lib/release"
+
+            # create fat libraries
+            lipo -create ${stage}/ogg_debug_x86/lib/libogg.a ${stage}/ogg_debug_arm64/lib/libogg.a -output ${stage}/lib/debug/libogg.a
+            lipo -create ${stage}/ogg_release_x86/lib/libogg.a ${stage}/ogg_release_arm64/lib/libogg.a -output ${stage}/lib/release/libogg.a
+
+            # copy headers
+            cp -a $stage/ogg_release_x86/include/* $stage/include/
         popd
 
         pushd "$VORBIS_SOURCE_DIR"
-             # force regenerate autoconf
-            autoreconf -fvi
+            # x86 Deploy Target
+            export MACOSX_DEPLOYMENT_TARGET=${X86_DEPLOY}
 
-            # debug configure and build
-            mkdir -p "build_debug"
-            pushd "build_debug"
-                CFLAGS="$DEBUG_CFLAGS" CXXFLAGS="$DEBUG_CXXFLAGS" \
-                CPPFLAGS="$DEBUG_CPPFLAGS" LDFLAGS="$DEBUG_LDFLAGS" \
-                    ../configure --with-pic  --enable-shared=no --with-ogg-includes="$stage/include/" --with-ogg-libraries="$stage/lib/debug" \
-                    --prefix="\${AUTOBUILD_PACKAGES_DIR}" --includedir="\${prefix}/include" --libdir="\${prefix}/lib/debug"
-                make -j$AUTOBUILD_CPU_COUNT
-                make install DESTDIR="$stage"
+            mkdir -p "build_debug_x86"
+            pushd "build_debug_x86"
+                CFLAGS="$ARCH_FLAGS_X86 $DEBUG_CFLAGS" \
+                CXXFLAGS="$ARCH_FLAGS_X86 $DEBUG_CXXFLAGS" \
+                CPPFLAGS="$ARCH_FLAGS_X86 $DEBUG_CPPFLAGS" \
+                LDFLAGS="$ARCH_FLAGS_X86 $DEBUG_LDFLAGS" \
+                cmake .. -GXcode -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=ON \
+                    -DOGG_LIBRARIES="${stage}/lib/debug/libogg.a" -DOGG_INCLUDE_DIRS="$stage/include" \
+                    -DCMAKE_C_FLAGS="$ARCH_FLAGS_X86 $DEBUG_CFLAGS" \
+                    -DCMAKE_CXX_FLAGS="$ARCH_FLAGS_X86 $DEBUG_CXXFLAGS" \
+                    -DCMAKE_XCODE_ATTRIBUTE_GCC_OPTIMIZATION_LEVEL="0" \
+                    -DCMAKE_XCODE_ATTRIBUTE_GCC_FAST_MATH=OFF \
+                    -DCMAKE_XCODE_ATTRIBUTE_GCC_GENERATE_DEBUGGING_SYMBOLS=YES \
+                    -DCMAKE_XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT=dwarf \
+                    -DCMAKE_XCODE_ATTRIBUTE_LLVM_LTO=OFF \
+                    -DCMAKE_XCODE_ATTRIBUTE_DEAD_CODE_STRIPPING=YES \
+                    -DCMAKE_XCODE_ATTRIBUTE_CLANG_X86_VECTOR_INSTRUCTIONS=sse4.2 \
+                    -DCMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LANGUAGE_STANDARD="c++17" \
+                    -DCMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY="libc++" \
+                    -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY="" \
+                    -DCMAKE_OSX_ARCHITECTURES:STRING=x86_64 \
+                    -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
+                    -DCMAKE_OSX_SYSROOT=${SDKROOT} \
+                    -DCMAKE_MACOSX_RPATH=YES \
+                    -DCMAKE_INSTALL_PREFIX="$stage/vorbis_debug_x86"
+
+                cmake --build . --config Debug
+                cmake --install . --config Debug
 
                 # conditionally run unit tests
                 if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
-                    make check
+                    ctest -C Debug
                 fi
             popd
 
-            # Release configure and build
-            mkdir -p "build_release"
-            pushd "build_release"
-                CFLAGS="$RELEASE_CFLAGS" CXXFLAGS="$RELEASE_CXXFLAGS" \
-                CPPFLAGS="$RELEASE_CPPFLAGS" LDFLAGS="$RELEASE_LDFLAGS" \
-                ../configure --with-pic  --enable-shared=no --with-ogg-includes="$stage/include/" --with-ogg-libraries="$stage/lib/release" \
-                    --prefix="\${AUTOBUILD_PACKAGES_DIR}" --includedir="\${prefix}/include" --libdir="\${prefix}/lib/release"
-                make -j$AUTOBUILD_CPU_COUNT
-                make install DESTDIR="$stage"
+            mkdir -p "build_release_x86"
+            pushd "build_release_x86"
+                CFLAGS="$ARCH_FLAGS_X86 $RELEASE_CFLAGS" \
+                CXXFLAGS="$ARCH_FLAGS_X86 $RELEASE_CXXFLAGS" \
+                CPPFLAGS="$ARCH_FLAGS_X86 $RELEASE_CPPFLAGS" \
+                LDFLAGS="$ARCH_FLAGS_X86 $RELEASE_LDFLAGS" \
+                cmake .. -GXcode -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=ON \
+                    -DOGG_LIBRARIES="${stage}/lib/release/libogg.a" -DOGG_INCLUDE_DIRS="$stage/include" \
+                    -DCMAKE_C_FLAGS="$ARCH_FLAGS_X86 $RELEASE_CFLAGS" \
+                    -DCMAKE_CXX_FLAGS="$ARCH_FLAGS_X86 $RELEASE_CXXFLAGS" \
+                    -DCMAKE_XCODE_ATTRIBUTE_GCC_OPTIMIZATION_LEVEL="3" \
+                    -DCMAKE_XCODE_ATTRIBUTE_GCC_FAST_MATH=NO \
+                    -DCMAKE_XCODE_ATTRIBUTE_GCC_GENERATE_DEBUGGING_SYMBOLS=YES \
+                    -DCMAKE_XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT=dwarf \
+                    -DCMAKE_XCODE_ATTRIBUTE_LLVM_LTO=NO \
+                    -DCMAKE_XCODE_ATTRIBUTE_DEAD_CODE_STRIPPING=YES \
+                    -DCMAKE_XCODE_ATTRIBUTE_CLANG_X86_VECTOR_INSTRUCTIONS=sse4.2 \
+                    -DCMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LANGUAGE_STANDARD="c++17" \
+                    -DCMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY="libc++" \
+                    -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY="" \
+                    -DCMAKE_OSX_ARCHITECTURES:STRING=x86_64 \
+                    -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
+                    -DCMAKE_OSX_SYSROOT=${SDKROOT} \
+                    -DCMAKE_MACOSX_RPATH=YES \
+                    -DCMAKE_INSTALL_PREFIX="$stage/vorbis_release_x86"
+
+                cmake --build . --config Release
+                cmake --install . --config Release
 
                 # conditionally run unit tests
                 if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
-                    make check
+                    ctest -C Release
                 fi
             popd
+
+            # ARM64 Deploy Target
+            export MACOSX_DEPLOYMENT_TARGET=${ARM64_DEPLOY}
+
+            mkdir -p "build_debug_arm64"
+            pushd "build_debug_arm64"
+                CFLAGS="$ARCH_FLAGS_ARM64 $DEBUG_CFLAGS" \
+                CXXFLAGS="$ARCH_FLAGS_ARM64 $DEBUG_CXXFLAGS" \
+                CPPFLAGS="$ARCH_FLAGS_ARM64 $DEBUG_CPPFLAGS" \
+                LDFLAGS="$ARCH_FLAGS_ARM64 $DEBUG_LDFLAGS" \
+                cmake .. -GXcode -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=ON \
+                    -DOGG_LIBRARIES="${stage}/lib/debug/libogg.a" -DOGG_INCLUDE_DIRS="$stage/include" \
+                    -DCMAKE_C_FLAGS="$ARCH_FLAGS_ARM64 $DEBUG_CFLAGS" \
+                    -DCMAKE_CXX_FLAGS="$ARCH_FLAGS_ARM64 $DEBUG_CXXFLAGS" \
+                    -DCMAKE_XCODE_ATTRIBUTE_GCC_OPTIMIZATION_LEVEL="0" \
+                    -DCMAKE_XCODE_ATTRIBUTE_GCC_FAST_MATH=OFF \
+                    -DCMAKE_XCODE_ATTRIBUTE_GCC_GENERATE_DEBUGGING_SYMBOLS=YES \
+                    -DCMAKE_XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT=dwarf \
+                    -DCMAKE_XCODE_ATTRIBUTE_LLVM_LTO=OFF \
+                    -DCMAKE_XCODE_ATTRIBUTE_DEAD_CODE_STRIPPING=YES \
+                    -DCMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LANGUAGE_STANDARD="c++17" \
+                    -DCMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY="libc++" \
+                    -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY="" \
+                    -DCMAKE_OSX_ARCHITECTURES:STRING=arm64 \
+                    -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
+                    -DCMAKE_OSX_SYSROOT=${SDKROOT} \
+                    -DCMAKE_MACOSX_RPATH=YES \
+                    -DCMAKE_INSTALL_PREFIX="$stage/vorbis_debug_arm64"
+
+                cmake --build . --config Debug
+                cmake --install . --config Debug
+
+                # conditionally run unit tests
+                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                    ctest -C Debug
+                fi
+            popd
+
+            mkdir -p "build_release_arm64"
+            pushd "build_release_arm64"
+                CFLAGS="$ARCH_FLAGS_ARM64 $RELEASE_CFLAGS" \
+                CXXFLAGS="$ARCH_FLAGS_ARM64 $RELEASE_CXXFLAGS" \
+                CPPFLAGS="$ARCH_FLAGS_ARM64 $RELEASE_CPPFLAGS" \
+                LDFLAGS="$ARCH_FLAGS_ARM64 $RELEASE_LDFLAGS" \
+                cmake .. -GXcode -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=ON \
+                    -DOGG_LIBRARIES="${stage}/lib/release/libogg.a" -DOGG_INCLUDE_DIRS="$stage/include" \
+                    -DCMAKE_C_FLAGS="$ARCH_FLAGS_ARM64 $RELEASE_CFLAGS" \
+                    -DCMAKE_CXX_FLAGS="$ARCH_FLAGS_ARM64 $RELEASE_CXXFLAGS" \
+                    -DCMAKE_XCODE_ATTRIBUTE_GCC_OPTIMIZATION_LEVEL="3" \
+                    -DCMAKE_XCODE_ATTRIBUTE_GCC_FAST_MATH=NO \
+                    -DCMAKE_XCODE_ATTRIBUTE_GCC_GENERATE_DEBUGGING_SYMBOLS=YES \
+                    -DCMAKE_XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT=dwarf \
+                    -DCMAKE_XCODE_ATTRIBUTE_LLVM_LTO=NO \
+                    -DCMAKE_XCODE_ATTRIBUTE_DEAD_CODE_STRIPPING=YES \
+                    -DCMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LANGUAGE_STANDARD="c++17" \
+                    -DCMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY="libc++" \
+                    -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY="" \
+                    -DCMAKE_OSX_ARCHITECTURES:STRING=arm64 \
+                    -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
+                    -DCMAKE_OSX_SYSROOT=${SDKROOT} \
+                    -DCMAKE_MACOSX_RPATH=YES \
+                    -DCMAKE_INSTALL_PREFIX="$stage/vorbis_release_arm64"
+
+                cmake --build . --config Release
+                cmake --install . --config Release
+
+                # conditionally run unit tests
+                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                   ctest -C Release
+                fi
+            popd
+
+            # setup staging dirs
+            mkdir -p "$stage/include/"
+            mkdir -p "$stage/lib/debug"
+            mkdir -p "$stage/lib/release"
+
+            # create fat libraries
+            lipo -create ${stage}/vorbis_debug_x86/lib/libvorbis.a ${stage}/vorbis_debug_arm64/lib/libvorbis.a -output ${stage}/lib/debug/libvorbis.a
+            lipo -create ${stage}/vorbis_release_x86/lib/libvorbis.a ${stage}/vorbis_release_arm64/lib/libvorbis.a -output ${stage}/lib/release/libvorbis.a
+
+            # copy headers
+            cp -a $stage/vorbis_release_x86/include/* $stage/include/
         popd
      ;;
     linux*)
