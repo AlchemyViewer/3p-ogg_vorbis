@@ -91,22 +91,25 @@ if (NOT BUILD_FRAMEWORK)
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
        PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}
+            ${OGG_INCLUDE_DIRS}
     )
     target_include_directories(vorbisenc
         PUBLIC
+            ${OGG_INCLUDE_DIRS}
             $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-        PRIVATE
+       PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}
     )
     target_include_directories(vorbisfile
         PUBLIC
+            ${OGG_INCLUDE_DIRS}
             $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     )
 
     target_link_libraries(vorbis
-        PUBLIC Ogg::ogg
+        PUBLIC ${OGG_LIBRARIES}
         PRIVATE $<$<BOOL:${HAVE_LIBM}>:m>
     )
     target_link_libraries(vorbisenc PUBLIC vorbis)

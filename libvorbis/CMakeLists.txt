@@ -4,6 +4,7 @@ project(vorbis)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 # Required modules
+include(CTest)
 include(GNUInstallDirs)
 include(CheckIncludeFiles)
 include(CheckLibraryExists)
@@ -62,9 +63,13 @@ message(STATUS "Configuring ${PROJECT_NAME} ${PROJECT_VERSION}")
 check_library_exists(m floor "" HAVE_LIBM)
 
 # Find ogg dependency
-find_package(Ogg REQUIRED)
+#find_package(Ogg REQUIRED)
 
 add_subdirectory(lib)
+
+if(BUILD_TESTING)
+    add_subdirectory(test)
+endif()
 
 configure_pkg_config_file(vorbis.pc.in)
 configure_pkg_config_file(vorbisenc.pc.in)
