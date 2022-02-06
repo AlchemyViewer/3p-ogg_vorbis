@@ -409,7 +409,11 @@ case "$AUTOBUILD_PLATFORM" in
 
             # create fat libraries
             lipo -create ${stage}/vorbis_debug_x86/lib/libvorbis.a ${stage}/vorbis_debug_arm64/lib/libvorbis.a -output ${stage}/lib/debug/libvorbis.a
+            lipo -create ${stage}/vorbis_debug_x86/lib/libvorbisenc.a ${stage}/vorbis_debug_arm64/lib/libvorbisenc.a -output ${stage}/lib/debug/libvorbisenc.a
+            lipo -create ${stage}/vorbis_debug_x86/lib/libvorbisfile.a ${stage}/vorbis_debug_arm64/lib/libvorbisfile.a -output ${stage}/lib/debug/libvorbisfile.a
             lipo -create ${stage}/vorbis_release_x86/lib/libvorbis.a ${stage}/vorbis_release_arm64/lib/libvorbis.a -output ${stage}/lib/release/libvorbis.a
+            lipo -create ${stage}/vorbis_release_x86/lib/libvorbisenc.a ${stage}/vorbis_release_arm64/lib/libvorbisenc.a -output ${stage}/lib/release/libvorbisenc.a
+            lipo -create ${stage}/vorbis_release_x86/lib/libvorbisfile.a ${stage}/vorbis_release_arm64/lib/libvorbisfile.a -output ${stage}/lib/release/libvorbisfile.a
 
             # copy headers
             cp -a $stage/vorbis_release_x86/include/* $stage/include/
