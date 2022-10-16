@@ -105,6 +105,10 @@ set_target_properties(
     PUBLIC_HEADER "${OGG_HEADERS}"
 )
 
+if(MSVC AND NOT BUILD_SHARED_LIBS)
+    target_compile_options(ogg PRIVATE /Z7)
+endif()
+
 if(BUILD_FRAMEWORK)
     set_target_properties(ogg PROPERTIES
         FRAMEWORK TRUE

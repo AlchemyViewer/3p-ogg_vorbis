@@ -35,50 +35,100 @@ source_environment_tempfile="$stage/source_environment.sh"
 
 echo "${OGG_VERSION}" > "${stage}/VERSION.txt"
 
+# setup staging dirs
+mkdir -p "$stage/include/"
+mkdir -p "$stage/lib/debug"
+mkdir -p "$stage/lib/release"
+
 case "$AUTOBUILD_PLATFORM" in
     windows*)
-        function copy_result {
-            # $1 is the build directory in which to find the result
-            # $2 is the basename of the .lib file we expect to find there
-            cp "$1/$2".{lib,dll,exp,pdb} "$stage/lib/$3/"
-        }
-
-        if [ "$AUTOBUILD_ADDRSIZE" = 32 ]
-        then bitdir="Win32"
-        else bitdir="x64"
-        fi
-
         pushd "$OGG_SOURCE_DIR"
-            pushd "win32/VS2019"
-                build_sln "libogg.sln" "DebugDLL" "$AUTOBUILD_WIN_VSPLATFORM" "libogg"
+            mkdir -p "build_debug"
+            pushd "build_debug"
+                cmake .. -G "$AUTOBUILD_WIN_CMAKE_GEN" -A "$AUTOBUILD_WIN_VSPLATFORM" -DBUILD_SHARED_LIBS=OFF \
+                    -DBUILD_TESTING=ON \
+                    -DCMAKE_INSTALL_PREFIX="$(cygpath -m $stage)/ogg_debug"
 
-                mkdir -p "$stage/lib/debug"
-                copy_result "$bitdir/DebugDLL" libogg debug
+                cmake --build . --config Debug
+                cmake --install . --config Debug
 
-                build_sln "libogg.sln" "ReleaseDLL" "$AUTOBUILD_WIN_VSPLATFORM" "libogg"
-
-                mkdir -p "$stage/lib/release"
-                copy_result "$bitdir/ReleaseDLL" libogg release
+                # conditionally run unit tests
+                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                    ctest -C Debug
+                fi
             popd
 
-        mkdir -p "$stage/include"
-        cp -a "include/ogg/" "$stage/include/"
+            mkdir -p "build_release"
+            pushd "build_release"
+                cmake .. -G "$AUTOBUILD_WIN_CMAKE_GEN" -A "$AUTOBUILD_WIN_VSPLATFORM" -DBUILD_SHARED_LIBS=OFF \
+                    -DBUILD_TESTING=ON \
+                    -DCMAKE_INSTALL_PREFIX="$(cygpath -m $stage)/ogg_release"
 
+                cmake --build . --config Release
+                cmake --install . --config Release
+
+                # conditionally run unit tests
+                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                    ctest -C Release
+                fi
+            popd
         popd
+
+        # copy ogg libs
+        cp ${stage}/ogg_debug/lib/ogg.lib ${stage}/lib/debug/libogg.lib
+        cp ${stage}/ogg_release/lib/ogg.lib ${stage}/lib/release/libogg.lib
+
+        # copy ogg headers
+        cp -a $stage/ogg_release/include/* $stage/include/
+
         pushd "$VORBIS_SOURCE_DIR"
-            pushd "win32/VS2019"
-                build_sln "vorbis_dynamic.sln" "DebugDLL" "$AUTOBUILD_WIN_VSPLATFORM"
+            mkdir -p "build_debug"
+            pushd "build_debug"
+                cmake .. -G "$AUTOBUILD_WIN_CMAKE_GEN" -A "$AUTOBUILD_WIN_VSPLATFORM" \
+                    -DOGG_LIBRARIES="$(cygpath -m $stage)/lib/debug/libogg.lib" \
+                    -DOGG_INCLUDE_DIRS="$(cygpath -m $stage)/include" \
+                    -DBUILD_SHARED_LIBS=OFF \
+                    -DBUILD_TESTING=ON \
+                    -DCMAKE_INSTALL_PREFIX="$(cygpath -m $stage)/vorbis_debug"
 
-                copy_result "$bitdir/DebugDLL"  libvorbis       debug
-                copy_result "$bitdir/DebugDLL"  libvorbisfile   debug
+                cmake --build . --config Debug
+                cmake --install . --config Debug
 
-                build_sln "vorbis_dynamic.sln" "ReleaseDLL" "$AUTOBUILD_WIN_VSPLATFORM"
-
-                copy_result "$bitdir/ReleaseDLL"  libvorbis       release
-                copy_result "$bitdir/ReleaseDLL"  libvorbisfile   release
+                # conditionally run unit tests
+                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                    ctest -C Debug
+                fi
             popd
-            cp -a "include/vorbis/" "$stage/include/"
+
+            mkdir -p "build_release"
+            pushd "build_release"
+                cmake .. -G "$AUTOBUILD_WIN_CMAKE_GEN" -A "$AUTOBUILD_WIN_VSPLATFORM" \
+                    -DOGG_LIBRARIES="$(cygpath -m $stage)/lib/release/libogg.lib" \
+                    -DOGG_INCLUDE_DIRS="$(cygpath -m $stage)/include" \
+                    -DBUILD_SHARED_LIBS=OFF \
+                    -DBUILD_TESTING=ON \
+                    -DCMAKE_INSTALL_PREFIX="$(cygpath -m $stage)/vorbis_release"
+
+                cmake --build . --config Release
+                cmake --install . --config Release
+
+                # conditionally run unit tests
+                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                    ctest -C Release
+                fi
+            popd
         popd
+
+        # copy vorbis libs
+        cp ${stage}/vorbis_debug/lib/vorbis.lib ${stage}/lib/debug/libvorbis.lib
+        cp ${stage}/vorbis_debug/lib/vorbisenc.lib ${stage}/lib/debug/libvorbisenc.lib
+        cp ${stage}/vorbis_debug/lib/vorbisfile.lib ${stage}/lib/debug/libvorbisfile.lib
+        cp ${stage}/vorbis_release/lib/vorbis.lib ${stage}/lib/debug/libvorbis.lib
+        cp ${stage}/vorbis_release/lib/vorbisenc.lib ${stage}/lib/release/libvorbisenc.lib
+        cp ${stage}/vorbis_release/lib/vorbisfile.lib ${stage}/lib/debug/libvorbisfile.lib
+
+        # copy vorbis headers
+        cp -a $stage/vorbis_release/include/* $stage/include/
     ;;
     darwin*)
         # Setup osx sdk platform
@@ -244,11 +294,6 @@ case "$AUTOBUILD_PLATFORM" in
                 fi
             popd
 
-            # setup staging dirs
-            mkdir -p "$stage/include/"
-            mkdir -p "$stage/lib/debug"
-            mkdir -p "$stage/lib/release"
-
             # create fat libraries
             lipo -create ${stage}/ogg_debug_x86/lib/libogg.a ${stage}/ogg_debug_arm64/lib/libogg.a -output ${stage}/lib/debug/libogg.a
             lipo -create ${stage}/ogg_release_x86/lib/libogg.a ${stage}/ogg_release_arm64/lib/libogg.a -output ${stage}/lib/release/libogg.a
@@ -402,11 +447,6 @@ case "$AUTOBUILD_PLATFORM" in
                 fi
             popd
 
-            # setup staging dirs
-            mkdir -p "$stage/include/"
-            mkdir -p "$stage/lib/debug"
-            mkdir -p "$stage/lib/release"
-
             # create fat libraries
             lipo -create ${stage}/vorbis_debug_x86/lib/libvorbis.a ${stage}/vorbis_debug_arm64/lib/libvorbis.a -output ${stage}/lib/debug/libvorbis.a
             lipo -create ${stage}/vorbis_debug_x86/lib/libvorbisenc.a ${stage}/vorbis_debug_arm64/lib/libvorbisenc.a -output ${stage}/lib/debug/libvorbisenc.a
@@ -526,7 +566,6 @@ case "$AUTOBUILD_PLATFORM" in
         popd
     ;;
 esac
+
 mkdir -p "$stage/LICENSES"
-pushd "$OGG_SOURCE_DIR"
-    cp COPYING "$stage/LICENSES/ogg-vorbis.txt"
-popd
+cp $OGG_SOURCE_DIR/COPYING "$stage/LICENSES/ogg-vorbis.txt"

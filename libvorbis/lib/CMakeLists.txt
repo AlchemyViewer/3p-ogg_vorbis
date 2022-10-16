@@ -78,6 +78,12 @@ if (NOT BUILD_FRAMEWORK)
     add_library(vorbisenc ${VORBISENC_SOURCES})
     add_library(vorbisfile ${VORBISFILE_SOURCES})
 
+    if(MSVC AND NOT BUILD_SHARED_LIBS)
+        target_compile_options(vorbis PRIVATE /Z7)
+        target_compile_options(vorbisenc PRIVATE /Z7)
+        target_compile_options(vorbisfile PRIVATE /Z7)
+    endif()
+
     get_version_info(VORBIS_VERSION_INFO "V_LIB_CURRENT" "V_LIB_AGE" "V_LIB_REVISION")
     set_target_properties(vorbis PROPERTIES SOVERSION ${VORBIS_VERSION_INFO})
     get_version_info(VORBISENC_VERSION_INFO "VE_LIB_CURRENT" "VE_LIB_AGE" "VE_LIB_REVISION")
