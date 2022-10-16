@@ -123,9 +123,9 @@ case "$AUTOBUILD_PLATFORM" in
         cp ${stage}/vorbis_debug/lib/vorbis.lib ${stage}/lib/debug/libvorbis.lib
         cp ${stage}/vorbis_debug/lib/vorbisenc.lib ${stage}/lib/debug/libvorbisenc.lib
         cp ${stage}/vorbis_debug/lib/vorbisfile.lib ${stage}/lib/debug/libvorbisfile.lib
-        cp ${stage}/vorbis_release/lib/vorbis.lib ${stage}/lib/debug/libvorbis.lib
+        cp ${stage}/vorbis_release/lib/vorbis.lib ${stage}/lib/release/libvorbis.lib
         cp ${stage}/vorbis_release/lib/vorbisenc.lib ${stage}/lib/release/libvorbisenc.lib
-        cp ${stage}/vorbis_release/lib/vorbisfile.lib ${stage}/lib/debug/libvorbisfile.lib
+        cp ${stage}/vorbis_release/lib/vorbisfile.lib ${stage}/lib/release/libvorbisfile.lib
 
         # copy vorbis headers
         cp -a $stage/vorbis_release/include/* $stage/include/
