@@ -484,85 +484,98 @@ case "$AUTOBUILD_PLATFORM" in
             export CPPFLAGS="$TARGET_CPPFLAGS"
         fi
 
-        # Fix up path for pkgconfig
-        if [ -d "$stage/packages/lib/release/pkgconfig" ]; then
-            fix_pkgconfig_prefix "$stage/packages"
-        fi
-
-        OLD_PKG_CONFIG_PATH="${PKG_CONFIG_PATH:-}"
-
         pushd "$OGG_SOURCE_DIR"
-            # force regenerate autoconf
-            autoreconf -fvi
+            mkdir -p "build_debug"
+            pushd "build_debug"
+                CFLAGS="$DEBUG_CFLAGS" \
+                CPPFLAGS="$DEBUG_CPPFLAGS" \
+                cmake .. -GNinja -DBUILD_SHARED_LIBS:BOOL=OFF -DBUILD_TESTING=ON \
+                    -DCMAKE_BUILD_TYPE="Debug" \
+                    -DCMAKE_C_FLAGS="$DEBUG_CFLAGS" \
+                    -DCMAKE_INSTALL_PREFIX="$stage/ogg_debug"
 
-            # debug configure and build
-            export PKG_CONFIG_PATH="$stage/packages/lib/debug/pkgconfig:${OLD_PKG_CONFIG_PATH}"
+                cmake --build . --config Debug
+                cmake --install . --config Debug
 
-            CFLAGS="$DEBUG_CFLAGS" CXXFLAGS="$DEBUG_CXXFLAGS" ./configure --enable-static \
-                --prefix="\${AUTOBUILD_PACKAGES_DIR}" --includedir="\${prefix}/include" --libdir="\${prefix}/lib/debug"
-            make -j$AUTOBUILD_CPU_COUNT
-            make check
-            make install DESTDIR="$stage"
+                # conditionally run unit tests
+                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                   ctest -C Debug
+                fi
+            popd
 
-            # conditionally run unit tests
-            if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
-                make check
-            fi
+            mkdir -p "build_release"
+            pushd "build_release"
+                CFLAGS="$RELEASE_CFLAGS" \
+                CPPFLAGS="$RELEASE_CPPFLAGS" \
+                cmake .. -GNinja -DBUILD_SHARED_LIBS:BOOL=OFF -DBUILD_TESTING=ON \
+                    -DCMAKE_BUILD_TYPE="Release" \
+                    -DCMAKE_C_FLAGS="$RELEASE_CFLAGS" \
+                    -DCMAKE_INSTALL_PREFIX="$stage/ogg_release"
 
-            make distclean
+                cmake --build . --config Release
+                cmake --install . --config Release
 
-            # Release configure and build
-            export PKG_CONFIG_PATH="$stage/packages/lib/release/pkgconfig:${OLD_PKG_CONFIG_PATH}"
+                # conditionally run unit tests
+                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                   ctest -C Release
+                fi
+            popd
 
-            CFLAGS="$RELEASE_CFLAGS" CXXFLAGS="$RELEASE_CXXFLAGS" ./configure --enable-static \
-                --prefix="\${AUTOBUILD_PACKAGES_DIR}" --includedir="\${prefix}/include" --libdir="\${prefix}/lib/release"
-            make -j$AUTOBUILD_CPU_COUNT
-            make check
-            make install DESTDIR="$stage"
+            # Copy libraries
+            cp -a ${stage}/ogg_debug/lib/*.a ${stage}/lib/debug/
+            cp -a ${stage}/ogg_release/lib/*.a ${stage}/lib/release/
 
-            # conditionally run unit tests
-            if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
-                make check
-            fi
-
-            make distclean
+            # copy headers
+            cp -a ${stage}/ogg_release/include/* ${stage}/include/
         popd
         
         pushd "$VORBIS_SOURCE_DIR"
-             # force regenerate autoconf
-            autoreconf -fvi
+            mkdir -p "build_debug"
+            pushd "build_debug"
+                CFLAGS="$DEBUG_CFLAGS" \
+                CPPFLAGS="$DEBUG_CPPFLAGS" \
+                cmake .. -GNinja -DBUILD_SHARED_LIBS:BOOL=OFF -DBUILD_TESTING=ON \
+                    -DCMAKE_BUILD_TYPE="Debug" \
+                    -DCMAKE_C_FLAGS="$DEBUG_CFLAGS" \
+                    -DCMAKE_INSTALL_PREFIX="$stage/vorbis_debug" \
+                    -DOGG_LIBRARIES="$stage/lib/debug/libogg.a" \
+                    -DOGG_INCLUDE_DIRS="$stage/include"
 
-            # debug configure and build
-            export PKG_CONFIG_PATH="$stage/packages/lib/debug/pkgconfig:${OLD_PKG_CONFIG_PATH}"
+                cmake --build . --config Debug
+                cmake --install . --config Debug
 
-            CFLAGS="$DEBUG_CFLAGS" CXXFLAGS="$DEBUG_CXXFLAGS" LDFLAGS="$DEBUG_LDFLAGS" \
-                ./configure --with-pic --enable-static \
-                --prefix="\${AUTOBUILD_PACKAGES_DIR}" --includedir="\${prefix}/include" --libdir="\${prefix}/lib/debug"
-            make -j$AUTOBUILD_CPU_COUNT
-            make install DESTDIR="$stage"
+                # conditionally run unit tests
+                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                   ctest -C Debug
+                fi
+            popd
 
-            # conditionally run unit tests
-            if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
-                make check
-            fi
+            mkdir -p "build_release"
+            pushd "build_release"
+                CFLAGS="$RELEASE_CFLAGS" \
+                CPPFLAGS="$RELEASE_CPPFLAGS" \
+                cmake .. -GNinja -DBUILD_SHARED_LIBS:BOOL=OFF -DBUILD_TESTING=ON \
+                    -DCMAKE_BUILD_TYPE="Release" \
+                    -DCMAKE_C_FLAGS="$RELEASE_CFLAGS" \
+                    -DCMAKE_INSTALL_PREFIX="$stage/vorbis_release" \
+                    -DOGG_LIBRARIES="$stage/lib/release/libogg.a" \
+                    -DOGG_INCLUDE_DIRS="$stage/include"
 
-            make distclean
+                cmake --build . --config Release
+                cmake --install . --config Release
 
-            # Release configure and build
-            export PKG_CONFIG_PATH="$stage/packages/lib/release/pkgconfig:${OLD_PKG_CONFIG_PATH}"
+                # conditionally run unit tests
+                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                   ctest -C Release
+                fi
+            popd
 
-            CFLAGS="$RELEASE_CFLAGS" CXXFLAGS="$RELEASE_CXXFLAGS" LDFLAGS="$RELEASE_LDFLAGS" \
-                ./configure --with-pic --enable-static \
-                --prefix="\${AUTOBUILD_PACKAGES_DIR}" --includedir="\${prefix}/include" --libdir="\${prefix}/lib/release"
-            make -j$AUTOBUILD_CPU_COUNT
-            make install DESTDIR="$stage"
+            # Copy libraries
+            cp -a ${stage}/vorbis_debug/lib/*.a ${stage}/lib/debug/
+            cp -a ${stage}/vorbis_release/lib/*.a ${stage}/lib/release/
 
-            # conditionally run unit tests
-            if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
-                make check
-            fi
-
-            make distclean
+            # copy headers
+            cp -a ${stage}/vorbis_release/include/* ${stage}/include/
         popd
     ;;
 esac
