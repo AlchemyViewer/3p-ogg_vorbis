@@ -33,7 +33,7 @@ source_environment_tempfile="$stage/source_environment.sh"
 "$autobuild" source_environment > "$source_environment_tempfile"
 . "$source_environment_tempfile"
 
-echo "${OGG_VERSION}" > "${stage}/VERSION.txt"
+echo "${OGG_VERSION}-${VORBIS_VERSION}" > "${stage}/VERSION.txt"
 
 # setup staging dirs
 mkdir -p "$stage/include/"
@@ -175,6 +175,8 @@ case "$AUTOBUILD_PLATFORM" in
                     -DCMAKE_XCODE_ATTRIBUTE_CLANG_X86_VECTOR_INSTRUCTIONS=sse4.2 \
                     -DCMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LANGUAGE_STANDARD="c++17" \
                     -DCMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY="libc++" \
+                    -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED="NO" \
+                    -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED="NO" \
                     -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY="" \
                     -DCMAKE_OSX_ARCHITECTURES:STRING=x86_64 \
                     -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
@@ -209,6 +211,8 @@ case "$AUTOBUILD_PLATFORM" in
                     -DCMAKE_XCODE_ATTRIBUTE_CLANG_X86_VECTOR_INSTRUCTIONS=sse4.2 \
                     -DCMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LANGUAGE_STANDARD="c++17" \
                     -DCMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY="libc++" \
+                    -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED="NO" \
+                    -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED="NO" \
                     -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY="" \
                     -DCMAKE_OSX_ARCHITECTURES:STRING=x86_64 \
                     -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
@@ -245,6 +249,8 @@ case "$AUTOBUILD_PLATFORM" in
                     -DCMAKE_XCODE_ATTRIBUTE_DEAD_CODE_STRIPPING=YES \
                     -DCMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LANGUAGE_STANDARD="c++17" \
                     -DCMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY="libc++" \
+                    -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED="NO" \
+                    -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED="NO" \
                     -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY="" \
                     -DCMAKE_OSX_ARCHITECTURES:STRING=arm64 \
                     -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
@@ -278,6 +284,8 @@ case "$AUTOBUILD_PLATFORM" in
                     -DCMAKE_XCODE_ATTRIBUTE_DEAD_CODE_STRIPPING=YES \
                     -DCMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LANGUAGE_STANDARD="c++17" \
                     -DCMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY="libc++" \
+                    -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED="NO" \
+                    -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED="NO" \
                     -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY="" \
                     -DCMAKE_OSX_ARCHITECTURES:STRING=arm64 \
                     -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
