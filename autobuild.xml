@@ -4,7 +4,7 @@
     <key>package_description</key>
     <map>
       <key>canonical_repo</key>
-      <string>https://bitbucket.org/lindenlab/3p-ogg_vorbis</string>
+      <string>https://github.com/AlchemyViewer/3p-ogg_vorbis</string>
       <key>copyright</key>
       <string>Copyright (c) 2002, Xiph.org Foundation</string>
       <key>description</key>
@@ -65,7 +65,6 @@
           </map>
           <key>manifest</key>
           <array>
-            <string>lib/debug/*.a*</string>
             <string>lib/release/*.a*</string>
           </array>
           <key>name</key>
@@ -90,7 +89,6 @@
           </map>
           <key>manifest</key>
           <array>
-            <string>lib/debug/*.a*</string>
             <string>lib/release/*.a*</string>
           </array>
           <key>name</key>
