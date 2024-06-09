@@ -43,14 +43,26 @@ mkdir -p "$stage/lib/release"
 case "$AUTOBUILD_PLATFORM" in
     windows*)
         pushd "$OGG_SOURCE_DIR"
-            mkdir -p "build"
-            pushd "build"
+            mkdir -p "build_debug"
+            pushd "build_debug"
                 cmake .. -G "Ninja Multi-Config" -DBUILD_SHARED_LIBS=OFF \
                     -DBUILD_TESTING=ON \
                     -DCMAKE_INSTALL_PREFIX="$(cygpath -m $stage)/ogg_release"
 
                 cmake --build . --config Debug
                 cmake --install . --config Debug
+
+                # conditionally run unit tests
+                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                    ctest -C Debug
+                fi
+            popd
+
+            mkdir -p "build_release"
+            pushd "build_release"
+                cmake .. -G "Ninja Multi-Config" -DBUILD_SHARED_LIBS=OFF \
+                    -DBUILD_TESTING=ON \
+                    -DCMAKE_INSTALL_PREFIX="$(cygpath -m $stage)/ogg_release"
 
                 cmake --build . --config Release
                 cmake --install . --config Release
@@ -153,7 +165,7 @@ case "$AUTOBUILD_PLATFORM" in
             pushd "build_release_arm64"
                 CFLAGS="$C_OPTS_ARM64" \
                 LDFLAGS="$LINK_OPTS_ARM64" \
-                cmake .. -GXcode -DCMAKE_BUILD_TYPE="Release" -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=ON \
+                cmake .. -G Ninja -DCMAKE_BUILD_TYPE="Release" -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=ON \
                     -DCMAKE_C_FLAGS="$C_OPTS_ARM64" \
                     -DCMAKE_OSX_ARCHITECTURES:STRING=arm64 \
                     -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
