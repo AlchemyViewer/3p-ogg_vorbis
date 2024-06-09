@@ -47,7 +47,7 @@ case "$AUTOBUILD_PLATFORM" in
             pushd "build_debug"
                 cmake .. -G "Ninja Multi-Config" -DBUILD_SHARED_LIBS=OFF \
                     -DBUILD_TESTING=ON \
-                    -DCMAKE_INSTALL_PREFIX="$(cygpath -m $stage)/ogg_release"
+                    -DCMAKE_INSTALL_PREFIX="$(cygpath -m $stage)/ogg_debug"
 
                 cmake --build . --config Debug
                 cmake --install . --config Debug
