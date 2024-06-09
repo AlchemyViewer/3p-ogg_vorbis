@@ -133,7 +133,7 @@ case "$AUTOBUILD_PLATFORM" in
             pushd "build_release_x86"
                 CFLAGS="$C_OPTS_X86" \
                 LDFLAGS="$LINK_OPTS_X86" \
-                cmake .. -GNinja -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=ON \
+                cmake .. -GNinja -DCMAKE_BUILD_TYPE="Release" -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=ON \
                     -DCMAKE_C_FLAGS="$C_OPTS_X86" \
                     -DCMAKE_OSX_ARCHITECTURES:STRING=x86_64 \
                     -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
@@ -153,7 +153,7 @@ case "$AUTOBUILD_PLATFORM" in
             pushd "build_release_arm64"
                 CFLAGS="$C_OPTS_ARM64" \
                 LDFLAGS="$LINK_OPTS_ARM64" \
-                cmake .. -GXcode -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=ON \
+                cmake .. -GXcode -DCMAKE_BUILD_TYPE="Release" -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=ON \
                     -DCMAKE_C_FLAGS="$C_OPTS_ARM64" \
                     -DCMAKE_OSX_ARCHITECTURES:STRING=arm64 \
                     -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
@@ -181,12 +181,11 @@ case "$AUTOBUILD_PLATFORM" in
             pushd "build_release_x86"
                 CFLAGS="$C_OPTS_X86" \
                 LDFLAGS="$LINK_OPTS_X86" \
-                cmake .. -G Ninja -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=ON \
+                cmake .. -G Ninja -DCMAKE_BUILD_TYPE="Release" -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=ON \
                     -DOGG_LIBRARIES="${stage}/lib/release/libogg.a" -DOGG_INCLUDE_DIRS="$stage/include" \
                     -DCMAKE_C_FLAGS="$C_OPTS_X86" \
                     -DCMAKE_OSX_ARCHITECTURES:STRING=x86_64 \
                     -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
-                    -DCMAKE_OSX_SYSROOT=${SDKROOT} \
                     -DCMAKE_MACOSX_RPATH=YES \
                     -DCMAKE_INSTALL_PREFIX="$stage/vorbis_release_x86"
 
@@ -203,12 +202,11 @@ case "$AUTOBUILD_PLATFORM" in
             pushd "build_release_arm64"
                 CFLAGS="$C_OPTS_ARM64" \
                 LDFLAGS="$LINK_OPTS_ARM64" \
-                cmake .. -G Ninja -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=ON \
+                cmake .. -G Ninja -DCMAKE_BUILD_TYPE="Release" -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=ON \
                     -DOGG_LIBRARIES="${stage}/lib/release/libogg.a" -DOGG_INCLUDE_DIRS="$stage/include" \
                     -DCMAKE_C_FLAGS="$C_OPTS_ARM64" \
                     -DCMAKE_OSX_ARCHITECTURES:STRING=arm64 \
                     -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
-                    -DCMAKE_OSX_SYSROOT=${SDKROOT} \
                     -DCMAKE_MACOSX_RPATH=YES \
                     -DCMAKE_INSTALL_PREFIX="$stage/vorbis_release_arm64"
 
