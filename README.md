@@ -1,4 +1,4 @@
-# 3p-zlib-ng
+# 3p-ogg_vorbis
 
 [Autobuild][] packaged [libogg][] and [libvorbis][].
 
