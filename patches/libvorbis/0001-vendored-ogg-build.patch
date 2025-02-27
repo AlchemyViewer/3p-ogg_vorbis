@@ -1,17 +1,13 @@
-From 6ebfe83448849548f29756c578920af18b059780 Mon Sep 17 00:00:00 2001
-From: Rye Mutt <rye@alchemyviewer.org>
-Date: Thu, 1 Aug 2024 22:43:57 -0400
-Subject: [PATCH] vendored-ogg-build
-
----
- CMakeLists.txt     | 2 +-
- lib/CMakeLists.txt | 5 ++++-
- 2 files changed, 5 insertions(+), 2 deletions(-)
-
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index f377c428..27e76134 100644
+index f377c428..2d8e2520 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
+@@ -1,4 +1,4 @@
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.16...3.31)
+ project(vorbis)
+ 
+ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 @@ -62,7 +62,7 @@ message(STATUS "Configuring ${PROJECT_NAME} ${PROJECT_VERSION}")
  check_library_exists(m floor "" HAVE_LIBM)
  
@@ -52,6 +48,3 @@ index 7cd68e50..7171f8d0 100644
          PRIVATE $<$<BOOL:${HAVE_LIBM}>:m>
      )
      target_link_libraries(vorbisenc PUBLIC vorbis)
--- 
-2.34.1
-
